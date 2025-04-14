@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Production Dashboard</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body { padding: 20px; }
+        .chart-container { margin-bottom: 30px; }
+        .table-container { max-height: 400px; overflow-y: auto; }
+        .table thead th { position: sticky; top: 0; background-color: #fff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 class="mb-4">Production & Quality Dashboard</h2>
+
+        <!-- Date Filter Form -->
+        <form method="POST" class="form-inline mb-4">
+            <label class="mr-2">Start Date:</label>
+            <input type="date" name="start_date" value="{{ start_date }}" min="{{ min_date }}" max="{{ max_date }}" class="form-control mr-3">
+            <label class="mr-2">End Date:</label>
+            <input type="date" name="end_date" value="{{ end_date }}" min="{{ min_date }}" max="{{ max_date }}" class="form-control mr-3">
+            <button type="submit" class="btn btn-primary">Apply Filter</button>
+        </form>
+
+        <!-- Charts -->
+        <div class="chart-container">
+            {{ chart1|safe }}
+        </div>
+        <div class="chart-container">
+            {{ chart2|safe }}
+        </div>
+
+        <!-- Data Table -->
+        <div class="table-container mt-4">
+            <h5>Filtered Data Preview</h5>
+            {{ table|safe }}
+        </div>
+    </div>
+</body>
+</html>
