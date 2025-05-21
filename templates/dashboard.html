@@ -2,41 +2,587 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Production Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Production & Quality Dashboard</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Swiper/8.4.5/swiper-bundle.min.css">
     <style>
-        body { padding: 20px; }
-        .chart-container { margin-bottom: 30px; }
-        .table-container { max-height: 400px; overflow-y: auto; }
-        .table thead th { position: sticky; top: 0; background-color: #fff; }
+        :root {
+            --bg-color: #f4f6f9;
+            --text-color: #343a40;
+            --card-bg: #ffffff;
+            --border-color: #dee2e6;
+            --table-header-bg: #f8f9fa;
+            --swiper-theme-color: #007bff;
+        }
+        [data-theme='dark'] {
+            --bg-color: #1e1e2f;
+            --text-color: #ffffff;
+            --card-bg: #2c2f3e;
+            --border-color: #555869;
+            --table-header-bg: #343a40;
+            --swiper-theme-color: #00bcd4;
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .wrapper { display: flex; min-height: 100vh; }
+        .sidebar { 
+            background-color: #343a40; 
+            width: 220px; 
+            padding: 20px 0; 
+            color: #fff;
+            transition: width 0.3s ease;
+        }
+        .sidebar.collapsed {
+            width: 70px;
+        }
+        .sidebar h2 { 
+            text-align: center; 
+            font-size: 1.5rem; 
+            font-weight: 600; 
+            margin-bottom: 30px; 
+        }
+        .sidebar.collapsed h2 {
+            display: none;
+        }
+        .sidebar a { 
+            display: block; 
+            color: #adb5bd; 
+            text-decoration: none; 
+            padding: 12px 20px; 
+            transition: background 0.3s;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        .sidebar.collapsed a {
+            padding: 12px;
+            text-align: center;
+        }
+        .sidebar.collapsed .menu-text {
+            display: none;
+        }
+        .sidebar a:hover { background-color: #495057; color: #fff; }
+        .sidebar a i {
+            margin-right: 10px;
+            width: 20px;
+            text-align: center;
+        }
+        .sidebar.collapsed a i {
+            margin-right: 0;
+        }
+        .content { 
+            flex: 1; 
+            padding: 30px; 
+            overflow-y: auto;
+            transition: opacity 0.3s ease;
+        }
+        h1 { font-size: 2rem; font-weight: 600; margin-bottom: 20px; }
+        .card { 
+            border: 1px solid var(--border-color); 
+            background: var(--card-bg); 
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); 
+            margin-bottom: 30px; 
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            opacity: 0.7;
+            transform: scale(0.98);
+        }
+        .card.active {
+            opacity: 1;
+            transform: scale(1);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+        .card:not(.active) .card-body {
+            pointer-events: none;
+            opacity: 0.6;
+        }
+        .card-header { 
+            background-color: transparent; 
+            font-weight: 600; 
+            font-size: 1.2rem; 
+            color: var(--text-color);
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .card-header:hover {
+            background-color: rgba(0,0,0,0.02);
+        }
+        .plotly-graph-div { width: 100% !important; }
+        form.filter-form { margin-bottom: 30px; }
+        .table-container { 
+            height: 400px; 
+            border: 1px solid var(--border-color); 
+            border-radius: 8px; 
+            overflow: hidden;
+            position: relative;
+        }
+        .swiper {
+            width: 100%;
+            height: 100%;
+        }
+        .swiper-slide {
+            padding: 15px;
+            height: auto;
+            overflow-y: auto;
+            max-height: 100%;
+        }
+        .swiper-slide::-webkit-scrollbar {
+            width: 6px;
+        }
+        .swiper-slide::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.05);
+        }
+        .swiper-slide::-webkit-scrollbar-thumb {
+            background: rgba(0,0,0,0.2);
+            border-radius: 3px;
+        }
+        .swiper-slide h3 {
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-color);
+            text-align: center;
+            position: sticky;
+            top: 0;
+            background-color: var(--card-bg);
+            padding: 10px 0;
+            z-index: 10;
+        }
+        .swiper-pagination {
+            position: absolute;
+            bottom: 0 !important;
+            background-color: rgba(0, 0, 0, 0.03);
+            width: 100%;
+            padding: 5px 0;
+            z-index: 20;
+        }
+        .swiper-pagination-bullet {
+            margin: 0 5px;
+        }
+        .dark-toggle { 
+            position: absolute; 
+            top: 15px; 
+            right: 20px; 
+            cursor: pointer; 
+            font-size: 1rem; 
+            background: #007bff; 
+            color: #fff; 
+            border: none; 
+            padding: 6px 14px; 
+            border-radius: 5px; 
+            transition: background 0.3s;
+        }
+        .dark-toggle:hover {
+            background: #0056b3;
+        }
+        [data-theme='dark'] .dark-toggle {
+            background: #00bcd4;
+        }
+        [data-theme='dark'] .dark-toggle:hover {
+            background: #008ba3;
+        }
+        .toggle-sidebar {
+            position: absolute;
+            top: 15px;
+            left: 220px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            background: #343a40;
+            color: #fff;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 0 5px 5px 0;
+            transition: left 0.3s ease;
+            z-index: 100;
+        }
+        .toggle-sidebar.collapsed {
+            left: 70px;
+        }
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+        .overlay.visible {
+            visibility: visible;
+            opacity: 1;
+        }
+        .table {
+            font-size: 0.9rem;
+            color: var(--text-color);
+            border-color: var(--border-color);
+            margin-bottom: 0;
+        }
+        .table th, .table td {
+            border-color: var(--border-color);
+        }
+        .table th {
+            background-color: var(--table-header-bg);
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        [data-theme='dark'] .table th {
+            color: #ffffff;
+            border-bottom: 2px solid var(--border-color);
+        }
+        [data-theme='dark'] .table {
+            color: #ffffff;
+        }
+        [data-theme='dark'] .table-striped tbody tr:nth-of-type(odd) {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+        [data-theme='dark'] .table-striped tbody tr:nth-of-type(even) {
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+        .form-control {
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            border-color: var(--border-color);
+        }
+        [data-theme='dark'] .form-control {
+            color: #ffffff;
+        }
+        [data-theme='dark'] .form-control:focus {
+            background-color: #3a3a4a;
+            color: #ffffff;
+        }
+        /* Fix for dark mode charts */
+        [data-theme='dark'] .js-plotly-plot .plotly .main-svg {
+            background-color: var(--card-bg) !important;
+        }
+        [data-theme='dark'] .js-plotly-plot .plotly .xtick text,
+        [data-theme='dark'] .js-plotly-plot .plotly .ytick text,
+        [data-theme='dark'] .js-plotly-plot .plotly .gtitle,
+        [data-theme='dark'] .js-plotly-plot .plotly .legend .legendtext,
+        [data-theme='dark'] .js-plotly-plot .plotly .axistitle-math-group text {
+            fill: var(--text-color) !important;
+        }
+        [data-theme='dark'] .js-plotly-plot .plotly .xaxislayer-above path,
+        [data-theme='dark'] .js-plotly-plot .plotly .yaxislayer-above path,
+        [data-theme='dark'] .js-plotly-plot .plotly .zaxislayer-above path {
+            stroke: var(--border-color) !important;
+        }
+        [data-theme='dark'] .js-plotly-plot .plotly .legend text {
+            fill: var(--text-color) !important;
+        }
+        [data-theme='dark'] .js-plotly-plot .plotly .gridlayer path {
+            stroke: rgba(255, 255, 255, 0.15) !important;
+        }
+        [data-theme='dark'] .js-plotly-plot .plotly .plot-container .svg-container .main-svg .infolayer .annotation-text-g text,
+        [data-theme='dark'] .js-plotly-plot .plotly .plot-container .svg-container .main-svg .infolayer .g-gtitle .gtitle {
+            fill: var(--text-color) !important;
+        }
+        @media (max-width: 768px) {
+            .wrapper { flex-direction: column; }
+            .sidebar { 
+                width: 100%; 
+                height: auto; 
+            }
+            .sidebar.collapsed {
+                height: 60px;
+                width: 100%;
+            }
+            .toggle-sidebar {
+                left: auto;
+                right: 20px;
+                top: 60px;
+            }
+            .toggle-sidebar.collapsed {
+                left: auto;
+                top: 15px;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2 class="mb-4">Production & Quality Dashboard</h2>
+    <button class="dark-toggle" onclick="toggleTheme()">Toggle Theme</button>
+    <button class="toggle-sidebar" onclick="toggleSidebar()">
+        <i class="fas fa-chevron-left"></i>
+    </button>
 
-        <!-- Date Filter Form -->
-        <form method="POST" class="form-inline mb-4">
-            <label class="mr-2">Start Date:</label>
-            <input type="date" name="start_date" value="{{ start_date }}" min="{{ min_date }}" max="{{ max_date }}" class="form-control mr-3">
-            <label class="mr-2">End Date:</label>
-            <input type="date" name="end_date" value="{{ end_date }}" min="{{ min_date }}" max="{{ max_date }}" class="form-control mr-3">
-            <button type="submit" class="btn btn-primary">Apply Filter</button>
-        </form>
+    <div class="overlay" id="overlayMessage">
+        <div>Loading data... Please wait</div>
+    </div>
 
-        <!-- Charts -->
-        <div class="chart-container">
-            {{ chart1|safe }}
+    <div class="wrapper">
+        <div class="sidebar">
+            <h2>Dashboard</h2>
+            <a href="#overview" onclick="activateSection('overview')">
+                <i class="fas fa-chart-line"></i>
+                <span class="menu-text">Overview</span>
+            </a>
+            <a href="#production" onclick="activateSection('production')">
+                <i class="fas fa-industry"></i>
+                <span class="menu-text">Production</span>
+            </a>
+            <a href="#quality" onclick="activateSection('quality')">
+                <i class="fas fa-check-circle"></i>
+                <span class="menu-text">Quality</span>
+            </a>
+            <a href="#deviation" onclick="activateSection('deviation')">
+                <i class="fas fa-chart-bar"></i>
+                <span class="menu-text">Deviation</span>
+            </a>
+            <a href="#recommendations" onclick="activateSection('recommendations')">
+                <i class="fas fa-lightbulb"></i>
+                <span class="menu-text">Recommendations</span>
+            </a>
         </div>
-        <div class="chart-container">
-            {{ chart2|safe }}
-        </div>
+        <div class="content">
+            <h1>Production & Quality Insights Dashboard</h1>
+            <form method="POST" class="filter-form form-inline">
+                <label for="start_date">Start:</label>
+                <input type="date" name="start_date" value="{{ start_date }}" class="form-control mx-2">
+                <label for="end_date">End:</label>
+                <input type="date" name="end_date" value="{{ end_date }}" class="form-control mx-2">
+                <button type="submit" class="btn btn-primary" onclick="showOverlay()">Filter</button>
+            </form>
 
-        <!-- Data Table -->
-        <div class="table-container mt-4">
-            <h5>Filtered Data Preview</h5>
-            {{ table|safe }}
+            <div class="card active" id="overview">
+                <div class="card-header" onclick="activateSection('overview')">
+                    Data Preview
+                </div>
+                <div class="card-body table-container">
+
+                    <div class="swiper tableSwiper">
+                        <div class="swiper-wrapper">
+                            {% for slide in table_slides %}
+                            <div class="swiper-slide">
+                                <h3>{{ slide.title }}</h3>
+                                {{ slide.content|safe }}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="swiper-pagination"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" id="production">
+                <div class="card-header" onclick="activateSection('production')">
+                    Planned vs Actual Production
+                </div>
+                <div class="card-body">{{ production_chart|safe }}</div>
+            </div>
+
+            <div class="card" id="quality">
+                <div class="card-header" onclick="activateSection('quality')">
+                    Planned vs Actual Quality
+                </div>
+                <div class="card-body">{{ quality_chart|safe }}</div>
+            </div>
+
+            <div class="card" id="deviation">
+                <div class="card-header" onclick="activateSection('deviation')">
+                    Deviation Analysis
+                </div>
+                <div class="card-body">{{ deviation_chart|safe }}</div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card" id="prodContribution">
+                        <div class="card-header" onclick="activateSection('prodContribution')">
+                            Production Contribution
+                        </div>
+                        <div class="card-body">{{ production_pie|safe }}</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card" id="qualContribution">
+                        <div class="card-header" onclick="activateSection('qualContribution')">
+                            Quality Contribution
+                        </div>
+                        <div class="card-body">{{ quality_pie|safe }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" id="recommendations">
+                <div class="card-header" onclick="activateSection('recommendations')">
+                    Recommendations
+                </div>
+                <div class="card-body">
+                    <ul>
+                        {% for rec in recommendations %}
+                        <li>{{ rec }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
         </div>
     </div>
+
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/js/all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Swiper/8.4.5/swiper-bundle.min.js"></script>
+    <script>
+
+        let tableSwiper;
+        
+        function setupTableSwiper() {
+            if (tableSwiper) {
+                tableSwiper.destroy(true, true);
+            }
+ 
+            tableSwiper = new Swiper(".tableSwiper", {
+                pagination: {
+                    el: ".swiper-pagination",
+                    clickable: true,
+                    dynamicBullets: true,
+                    dynamicMainBullets: 3
+                },
+                mousewheel: {
+                    invert: false,
+                    eventsTarget: '.swiper-slide',
+                    sensitivity: 1,
+                    thresholdDelta: 5
+                },
+                keyboard: {
+                    enabled: true,
+                    onlyInViewport: true
+                },
+                autoHeight: false,
+                height: 350,
+                slidesPerView: 1,
+                spaceBetween: 30,
+                resistanceRatio: 0,
+                watchSlidesProgress: true,
+                preventInteractionOnTransition: true,
+                grabCursor: true,
+                touchReleaseOnEdges: true,
+                threshold: 5
+            });
+
+            const swiperSlides = document.querySelectorAll('.swiper-slide');
+            swiperSlides.forEach(slide => {
+                slide.addEventListener('wheel', function(e) {
+                    const isAtBottom = this.scrollHeight - this.scrollTop <= this.clientHeight + 5;
+                    const isAtTop = this.scrollTop <= 0;
+
+                    if ((e.deltaY > 0 && isAtBottom) || (e.deltaY < 0 && isAtTop)) {
+                        e.stopPropagation();
+                    }
+                }, { passive: true });
+            });
+        }
+
+        function toggleTheme() {
+            const current = document.body.getAttribute('data-theme');
+            const newTheme = current === 'dark' ? 'light' : 'dark';
+            document.body.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            
+            // Update charts for the new theme
+            setTimeout(() => {
+                updateChartsForTheme(newTheme);
+            }, 100);
+        }
+
+        function updateChartsForTheme(theme) {
+            const textColor = theme === 'dark' ? '#ffffff' : '#343a40';
+            const gridColor = theme === 'dark' ? 'rgba(255, 255, 255, 0.15)' : '#dee2e6';
+            const bgColor = theme === 'dark' ? '#2c2f3e' : '#ffffff';
+            
+            document.querySelectorAll('.js-plotly-plot').forEach(chart => {
+                try {
+                    const update = {
+                        'paper_bgcolor': bgColor,
+                        'plot_bgcolor': bgColor,
+                        'font.color': textColor,
+                        'xaxis.gridcolor': gridColor,
+                        'yaxis.gridcolor': gridColor,
+                        'xaxis.color': textColor,
+                        'yaxis.color': textColor,
+                        'legend.font.color': textColor
+                    };
+                    
+                    Plotly.relayout(chart, update);
+                } catch (e) {
+                    console.error('Error updating chart:', e);
+                }
+            });
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.querySelector('.sidebar');
+            const toggleBtn = document.querySelector('.toggle-sidebar');
+            sidebar.classList.toggle('collapsed');
+            toggleBtn.classList.toggle('collapsed');
+            
+            const icon = toggleBtn.querySelector('i');
+            if (sidebar.classList.contains('collapsed')) {
+                icon.classList.remove('fa-chevron-left');
+                icon.classList.add('fa-chevron-right');
+            } else {
+                icon.classList.remove('fa-chevron-right');
+                icon.classList.add('fa-chevron-left');
+            }
+        }
+
+        function activateSection(sectionId) {
+            document.querySelectorAll('.card').forEach(card => {
+                card.classList.remove('active');
+            });
+            
+            const section = document.getElementById(sectionId);
+            if (section) {
+                section.classList.add('active');
+                section.scrollIntoView({behavior: 'smooth', block: 'center'});
+            }
+        }
+
+        function showOverlay() {
+            document.getElementById('overlayMessage').classList.add('visible');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.body.setAttribute('data-theme', savedTheme);
+            
+            setupTableSwiper();
+            
+            setTimeout(() => {
+                document.getElementById('overlayMessage').classList.remove('visible');
+            }, 300);
+            
+            document.querySelectorAll('.card-header').forEach(header => {
+                header.style.cursor = 'pointer';
+            });
+            
+            if (savedTheme === 'dark') {
+                setTimeout(() => {
+                    updateChartsForTheme('dark');
+                }, 500);
+            }
+            
+            window.addEventListener('resize', () => {
+                setupTableSwiper();
+            });
+        });
+
+        document.addEventListener('touchstart', function(e) {
+            if (e.target.closest('.swiper-slide')) {
+                e.stopPropagation();
+            }
+        }, { passive: true });
+    </script>
 </body>
 </html>

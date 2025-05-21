@@ -31,7 +31,63 @@ def load_data():
 def process_data(df):
     df["Production_Deviation"] = df["Actual_Production"] - df["Planned_Production"]
     df["Quality_Deviation"] = df["Actual_Quality"] - df["Planned_Quality"]
+
+    df = df.sort_values('Date', ascending=False)
     return df
+
+def prepare_table_slides(df):
+    """Create multiple slides for the table swiper based on data categories."""
+    slides = []
+
+    overview_columns = ["Date", "Planned_Production", "Actual_Production", "Planned_Quality", "Actual_Quality"]
+    overview_df = df[overview_columns].head(15).copy()
+    overview_df["Date"] = overview_df["Date"].dt.strftime("%Y-%m-%d")
+    
+    slides.append({
+        "title": "Overview",
+        "content": overview_df.to_html(classes="table table-bordered table-striped table-sm", index=False)
+    })
+    
+    prod_columns = ["Date", "Planned_Production", "Actual_Production", "Production_Deviation"]
+    prod_df = df[prod_columns].head(15).copy()
+    prod_df["Date"] = prod_df["Date"].dt.strftime("%Y-%m-%d")
+    prod_df["Production_Deviation"] = prod_df["Production_Deviation"].round(2)
+    
+    slides.append({
+        "title": "Production Analysis",
+        "content": prod_df.to_html(classes="table table-bordered table-striped table-sm", index=False)
+    })
+    
+    qual_columns = ["Date", "Planned_Quality", "Actual_Quality", "Quality_Deviation"]
+    qual_df = df[qual_columns].head(15).copy()
+    qual_df["Date"] = qual_df["Date"].dt.strftime("%Y-%m-%d")
+    qual_df["Quality_Deviation"] = qual_df["Quality_Deviation"].round(2)
+    
+    slides.append({
+        "title": "Quality Analysis",
+        "content": qual_df.to_html(classes="table table-bordered table-striped table-sm", index=False)
+    })
+    
+    summary_data = {
+        "Metric": ["Total Planned Production", "Total Actual Production", "Avg Production Deviation",
+                   "Total Planned Quality", "Total Actual Quality", "Avg Quality Deviation"],
+        "Value": [
+            f"{df['Planned_Production'].sum():.2f}",
+            f"{df['Actual_Production'].sum():.2f}",
+            f"{df['Production_Deviation'].mean():.2f}",
+            f"{df['Planned_Quality'].sum():.2f}",
+            f"{df['Actual_Quality'].sum():.2f}",
+            f"{df['Quality_Deviation'].mean():.2f}"
+        ]
+    }
+    summary_df = pd.DataFrame(summary_data)
+    
+    slides.append({
+        "title": "Summary Statistics",
+        "content": summary_df.to_html(classes="table table-bordered table-striped table-sm", index=False)
+    })
+    
+    return slides
 
 def create_production_chart(df):
     fig = px.line(df, x="Date", y=["Planned_Production", "Actual_Production"],
@@ -114,7 +170,7 @@ def index():
     if df.empty:
         production_chart = quality_chart = deviation_chart = production_pie = quality_pie = "<p>No data to display.</p>"
         recommendations = ["No data in the selected range."]
-        data_table = "<p>No data available.</p>"
+        table_slides = [{"title": "No Data", "content": "<p>No data available in the selected range.</p>"}]
     else:
         production_chart = create_production_chart(df)
         quality_chart = create_quality_chart(df)
@@ -122,104 +178,22 @@ def index():
         production_pie = create_production_pie(df)
         quality_pie = create_quality_pie(df)
         recommendations = generate_recommendations(df)
-        data_table = df.head(10).to_html(classes="table table-bordered table-striped table-sm", index=False)
+        table_slides = prepare_table_slides(df)
 
-    html_template = """
-    <html lang=\"en\">
-    <head>
-        <meta charset=\"UTF-8\">
-        <title>Production & Quality Dashboard</title>
-        <link rel=\"stylesheet\" href=\"https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css\">
-        <style>
-            :root {
-                --bg-color: #f4f6f9;
-                --text-color: #343a40;
-                --card-bg: #ffffff;
-            }
-            [data-theme='dark'] {
-                --bg-color: #1e1e2f;
-                --text-color: #f1f1f1;
-                --card-bg: #2c2f3e;
-            }
-            body {
-                background-color: var(--bg-color);
-                color: var(--text-color);
-            }
-            .wrapper { display: flex; min-height: 100vh; }
-            .sidebar { background-color: #343a40; width: 220px; padding: 20px 0; color: #fff; }
-            .sidebar h2 { text-align: center; font-size: 1.5rem; font-weight: 600; margin-bottom: 30px; }
-            .sidebar a { display: block; color: #adb5bd; text-decoration: none; padding: 12px 20px; transition: background 0.3s; }
-            .sidebar a:hover { background-color: #495057; color: #fff; }
-            .content { flex: 1; padding: 30px; overflow-y: auto; }
-            h1 { font-size: 2rem; font-weight: 600; margin-bottom: 20px; }
-            .card { border: none; background: var(--card-bg); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); margin-bottom: 30px; border-radius: 12px; }
-            .card-header { background-color: transparent; font-weight: 600; font-size: 1.2rem; color: var(--text-color); }
-            .plotly-graph-div { width: 100% !important; }
-            form.filter-form { margin-bottom: 30px; }
-            .table-container { max-height: 300px; overflow-y: auto; overflow-x: auto; border: 1px solid #dee2e6; border-radius: 5px; padding: 10px; background: #fff; }
-            .dark-toggle { position: absolute; top: 15px; right: 20px; cursor: pointer; font-size: 1rem; background: #007bff; color: #fff; border: none; padding: 6px 14px; border-radius: 5px; }
-            @media (max-width: 768px) {
-                .wrapper { flex-direction: column; }
-                .sidebar { width: 100%; height: auto; }
-            }
-        </style>
-    </head>
-    <body>
-    <button class=\"dark-toggle\" onclick=\"toggleTheme()\">Toggle Theme</button>
-    <div class=\"wrapper\">
-        <div class=\"sidebar\">
-            <h2>Dashboard</h2>
-            <a href=\"#\">Overview</a>
-            <a href=\"#\">Production</a>
-            <a href=\"#\">Quality</a>
-            <a href=\"#\">Recommendations</a>
-        </div>
-        <div class=\"content\">
-            <h1>Production & Quality Insights Dashboard</h1>
-            <form method=\"POST\" class=\"filter-form form-inline\">
-                <label for=\"start_date\">Start:</label>
-                <input type=\"date\" name=\"start_date\" value=\"{{ start_date }}\" class=\"form-control mx-2\">
-                <label for=\"end_date\">End:</label>
-                <input type=\"date\" name=\"end_date\" value=\"{{ end_date }}\" class=\"form-control mx-2\">
-                <button type=\"submit\" class=\"btn btn-primary\">Filter</button>
-            </form>
-
-            <div class=\"card\"><div class=\"card-header\">Data Preview</div><div class=\"card-body table-container\">{{ data_table|safe }}</div></div>
-            <div class=\"card\"><div class=\"card-header\">Planned vs Actual Production</div><div class=\"card-body\">{{ production_chart|safe }}</div></div>
-            <div class=\"card\"><div class=\"card-header\">Planned vs Actual Quality</div><div class=\"card-body\">{{ quality_chart|safe }}</div></div>
-            <div class=\"card\"><div class=\"card-header\">Deviation Analysis</div><div class=\"card-body\">{{ deviation_chart|safe }}</div></div>
-            <div class=\"row\">
-                <div class=\"col-md-6\"><div class=\"card\"><div class=\"card-header\">Production Contribution</div><div class=\"card-body\">{{ production_pie|safe }}</div></div></div>
-                <div class=\"col-md-6\"><div class=\"card\"><div class=\"card-header\">Quality Contribution</div><div class=\"card-body\">{{ quality_pie|safe }}</div></div></div>
-            </div>
-            <div class=\"card\"><div class=\"card-header\">Recommendations</div><div class=\"card-body\"><ul>{% for rec in recommendations %}<li>{{ rec }}</li>{% endfor %}</ul></div></div>
-        </div>
-    </div>
-    <script>
-        function toggleTheme() {
-            const current = document.body.getAttribute('data-theme');
-            const newTheme = current === 'dark' ? 'light' : 'dark';
-            document.body.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-        }
-        document.addEventListener('DOMContentLoaded', () => {
-            const savedTheme = localStorage.getItem('theme') || 'light';
-            document.body.setAttribute('data-theme', savedTheme);
-        });
-    </script>
-    </body>
-    </html>
-    """
-    return render_template_string(html_template,
-                                  start_date=start_date,
-                                  end_date=end_date,
-                                  data_table=data_table,
-                                  production_chart=production_chart,
-                                  quality_chart=quality_chart,
-                                  deviation_chart=deviation_chart,
-                                  production_pie=production_pie,
-                                  quality_pie=quality_pie,
-                                  recommendations=recommendations)
+    return render_template_string(
+        open("templates/dashboard.html").read(),
+        start_date=start_date,
+        end_date=end_date,
+        min_date=min_date,
+        max_date=max_date,
+        table_slides=table_slides,
+        production_chart=production_chart,
+        quality_chart=quality_chart,
+        deviation_chart=deviation_chart,
+        production_pie=production_pie,
+        quality_pie=quality_pie,
+        recommendations=recommendations
+    )
 
 if __name__ == "__main__":
     app.run(debug=True)
